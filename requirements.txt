@@ -1,0 +1,17 @@
+# Cloud Function runtime dependencies
+# Deploy with: gcloud functions deploy ... --runtime python311
+
+# Core download engine — pulls in yt-dlp, mutagen, spotipy transitively
+spotdl>=4.2.10,<5
+
+# Provides a pre-built static FFmpeg + FFprobe binary for Linux x86-64.
+# Downloaded once on cold start, cached for the container instance lifetime.
+# No buildpack or layer changes required.
+static-ffmpeg>=2.6.0
+
+# GCS upload
+google-cloud-storage>=2.16.0
+
+# functions-framework is injected automatically by Cloud Functions but
+# listed here so `functions-framework` works locally too.
+functions-framework==3.*
