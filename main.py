@@ -3,12 +3,13 @@ Cloud Function — Spotify playlist → 320 kbps MP3 → GCS
 
 POST body: {"playlist_url": "https://open.spotify.com/playlist/..."}
 
-Required env vars:
+Required env vars (set in .env locally, Cloud Function env vars in prod):
     SPOTIFY_CLIENT_ID      Spotify developer app credentials
     SPOTIFY_CLIENT_SECRET  Spotify developer app credentials
 
 Optional env vars:
-    GCS_BUCKET   override target bucket (default: dj-gig-tracks-2026)
+    GCS_BUCKET            Override target bucket (default: dj-gig-tracks-2026)
+    TIDAL_ACCESS_TOKEN    Windows Bearer token for tidal-wave HiRes downloads
 
 FFmpeg strategy:
     `static-ffmpeg` downloads a self-contained Linux binary on the first
@@ -31,7 +32,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import functions_framework
+from dotenv import load_dotenv
 from google.cloud import storage
+
+# Load .env for local development; no-op in Cloud Functions (no .env file).
+load_dotenv()
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(

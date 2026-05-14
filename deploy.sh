@@ -17,12 +17,21 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# Load .env if present (allows running `bash deploy.sh` without pre-exporting vars)
+if [ -f "$(dirname "$0")/.env" ]; then
+  set -o allexport
+  # shellcheck source=.env
+  source "$(dirname "$0")/.env"
+  set +o allexport
+fi
+
 REGION="us-central1"
 FUNCTION_NAME="download_playlist"
-BUCKET="dj-gig-tracks-2026"
+BUCKET="${GCS_BUCKET:-dj-gig-tracks-2026}"
 
-: "${SPOTIFY_CLIENT_ID:?Set SPOTIFY_CLIENT_ID before deploying}"
-: "${SPOTIFY_CLIENT_SECRET:?Set SPOTIFY_CLIENT_SECRET before deploying}"
+: "${SPOTIFY_CLIENT_ID:?Set SPOTIFY_CLIENT_ID in .env or shell before deploying}"
+: "${SPOTIFY_CLIENT_SECRET:?Set SPOTIFY_CLIENT_SECRET in .env or shell before deploying}"
+: "${TIDAL_ACCESS_TOKEN:?Set TIDAL_ACCESS_TOKEN in .env or shell before deploying}"
 
 gcloud functions deploy "${FUNCTION_NAME}" \
   --gen2 \
@@ -38,7 +47,7 @@ gcloud functions deploy "${FUNCTION_NAME}" \
   --concurrency 1 \
   --min-instances 0 \
   --max-instances 5 \
-  --set-env-vars "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID},SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET},GCS_BUCKET=${BUCKET}"
+  --set-env-vars "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID},SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET},GCS_BUCKET=${BUCKET},TIDAL_ACCESS_TOKEN=${TIDAL_ACCESS_TOKEN}"
 
 echo ""
 echo "✓ Deployed. Test with:"

@@ -1,0 +1,21 @@
+# Secrets — never commit these
+.env
+*.token
+
+# Local downloads — large audio files, not part of source
+downloads/
+
+# Debug logs that may contain tokens or PII
+tidal_debug.log
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
