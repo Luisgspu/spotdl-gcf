@@ -12,6 +12,9 @@ downloads every track as a 320 kbps MP3 using spotDL, zips the result, and uploa
 | `deploy.sh` | One-shot `gcloud functions deploy` with all flags pre-configured |
 | `architecture.md` | System design, data flow, resource limits |
 | `context.md` | Project background, credentials, GCS bucket, Rekordbox goals |
+| `slsk-download.ps1` | Local Soulseek downloader — accepts Exportify CSV, Spotify URL, or single track |
+| `sldl.conf` | sldl config — FLAC/WAV preferred, MP3 320 kbps fallback, format whitelist |
+| `check-downloads.ps1` | Verify downloads vs CSV, detect cross-playlist duplicates, export missing CSV |
 
 ## Environment Variables (required at deploy time)
 | Variable | Description |
@@ -40,7 +43,51 @@ downloads every track as a 320 kbps MP3 using spotDL, zips the result, and uploa
 - Do not change the output filename template `{artist} - {title}.{output-ext}` — Rekordbox expects this format.
 - The `--bitrate 320k` and `--format mp3` flags must never be removed or made configurable via request body.
 
-## Local Testing
+## Local Soulseek Download Workflow
+
+### Descargar un playlist completo
+Exportar el playlist desde [exportify.net](https://exportify.net) como CSV y guardarlo en `playlists csv\`, luego:
+```powershell
+.\slsk-download.ps1 ".\playlists csv\MiPlaylist.csv"
+```
+Descarga en `downloads\` con formato `Artist - Title.flac` (o `.mp3` si no hay FLAC).
+
+### Verificar qué se descargó
+```powershell
+# Ver qué falta de un CSV
+.\check-downloads.ps1 ".\playlists csv\MiPlaylist.csv"
+
+# Verificar múltiples playlists y detectar duplicados entre ellas
+.\check-downloads.ps1 ".\playlists csv\Playlist1.csv",".\playlists csv\Playlist2.csv"
+
+# Exportar CSV con solo los faltantes
+.\check-downloads.ps1 ".\playlists csv\MiPlaylist.csv" -ExportMissing
+# → genera missing_MiPlaylist.csv en la raíz del proyecto
+
+# Exportar Y descargar los faltantes en un solo paso
+.\check-downloads.ps1 ".\playlists csv\MiPlaylist.csv" -ExportMissing -Run
+```
+
+### Re-intentar tracks fallidos
+```powershell
+# check-downloads genera missing_<nombre>.csv automáticamente
+.\check-downloads.ps1 ".\playlists csv\MiPlaylist.csv" -ExportMissing -Run
+
+# O manualmente si ya tenés el CSV de faltantes
+.\slsk-download.ps1 ".\missing_MiPlaylist.csv"
+```
+
+### Detección de duplicados entre playlists
+Pasar múltiples CSVs a `check-downloads.ps1` detecta canciones que aparecen en más
+de un playlist. Si ya están en `downloads\`, no se vuelven a descargar.
+
+### Notas de sldl.conf
+- `format = flac,wav,mp3` — whitelist; sin este orden, sldl rechaza FLAC antes de aplicar `pref-format`
+- `pref-format = flac,wav` — prioriza lossless cuando está disponible
+- `min-bitrate = 320` — rechaza MP3 por debajo de 320 kbps
+- `fast-search = false` en el config file (no como flag CLI — sería interpretado como booleano true)
+
+## Local Testing (Cloud Function)
 ```bash
 # Install deps
 pip install -r requirements.txt

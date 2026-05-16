@@ -76,6 +76,37 @@ curl -X POST \
   -d '{"playlist_url": "https://open.spotify.com/playlist/1HcikGvh5kGDTkzTLZX3U4"}'
 ```
 
+## Tidal Downloads (tidal-wave)
+
+### Tool
+`tidal-wave` v2025.11.1 is installed. Supports HiRes FLAC (24-bit/192kHz) and LOSSLESS FLAC
+where available, making it the best quality source when tracks are found there.
+
+### Token problem — browser JWT does not authorize streaming
+The `TIDAL_ACCESS_TOKEN` in `.env` is a browser OAuth JWT (`cid: 8049`, TV/web client).
+It works for reading metadata (albums, playlists, track info) but returns **401 Unauthorized**
+on `GET /v1/tracks/{id}/playbackinfopostpaywall` — the endpoint that hands out the actual
+audio stream URL. Tidal intentionally blocks streaming from web-session tokens.
+
+**Evidence:** `tidal_debug.log` from 2026-05-14 shows successful metadata fetch for a playlist
+("80s") but 401 on every `playbackinfopostpaywall` call → all 38 tracks downloaded as `null`.
+
+### Fix: device-code login (one-time)
+Run `tidal-wave` once; on first run without a saved session it triggers a **device code flow**
+(open `link.tidal.com`, enter the code). The resulting session is saved to
+`%APPDATA%\tidal-wave\` and is fully authorized for audio streaming.
+The browser JWT in `.env` is NOT used by tidal-wave — it has its own session store.
+
+### Subscription requirement
+LOSSLESS requires **Tidal HiFi**; HiRes FLAC requires **Tidal HiFi Plus**.
+Verify the account tier before expecting lossless downloads.
+
+### Pending work for Tidal integration
+- Complete device-code login to create a valid tidal-wave session
+- Write a search step: CSV artist/title → Tidal track URL (via Tidal search API, using the
+  browser JWT which is valid for metadata) → pass URL to tidal-wave for download
+- Script: try Tidal first (HiRes/FLAC), fall back to Soulseek (sldl) if not found
+
 ## Future Improvements (not yet implemented)
 - Webhook / Pub-Sub notification when download completes (for long playlists)
 - Batch mode: accept a list of playlist URLs in one request
