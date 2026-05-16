@@ -20,30 +20,23 @@ rows = session.query(DjmdContent).all()
 print(f"Total filas en DjmdContent: {len(rows)}\n")
 
 prefixes = Counter()
-null_count = 0
 for r in rows:
     path = r.FolderPath
-    if not path:
-        null_count += 1
-        continue
-    # Tomar los primeros 4 caracteres como prefijo (ej: "G:/B", "G:\B", "X:/B")
-    prefixes[path[:4]] += 1
+    if path:
+        prefixes[path[:5]] += 1
 
-print("Distribución de prefijos en FolderPath:")
-for prefix, count in prefixes.most_common(20):
+print("Distribución de prefijos (5 chars) en FolderPath:")
+for prefix, count in prefixes.most_common(30):
     print(f"  {prefix!r}  →  {count} filas")
 
-print(f"\n  (null/vacío)  →  {null_count} filas")
-
-# Mostrar 3 ejemplos de cada prefijo único
+# Mostrar un ejemplo de cada prefijo único
 seen = set()
-print("\nEjemplos por prefijo:")
+print("\nEjemplos:")
 for r in rows:
     path = r.FolderPath
     if not path:
         continue
-    p = path[:4]
+    p = path[:5]
     if p not in seen:
         seen.add(p)
-        print(f"\n  Prefijo {p!r}:")
-        print(f"    FolderPath: {path[:120]}")
+        print(f"  {p!r}: {path[:120]}")
