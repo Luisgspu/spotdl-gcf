@@ -13,7 +13,7 @@ downloads every track as a 320 kbps MP3 using spotDL, zips the result, and uploa
 | `architecture.md` | System design, data flow, resource limits |
 | `context.md` | Project background, credentials, GCS bucket, Rekordbox goals |
 | `slsk-download.ps1` | Local Soulseek downloader — accepts Exportify CSV, Spotify URL, or single track |
-| `sldl.conf` | sldl config — FLAC/WAV preferred, MP3 320 kbps fallback, format whitelist |
+| `sldl.conf` | sldl config — base settings; format priority injected at runtime by slsk-download.ps1 |
 | `check-downloads.ps1` | Verify downloads vs CSV, detect cross-playlist duplicates, export missing CSV |
 
 ## Environment Variables (required at deploy time)
@@ -48,9 +48,17 @@ downloads every track as a 320 kbps MP3 using spotDL, zips the result, and uploa
 ### Descargar un playlist completo
 Exportar el playlist desde [exportify.net](https://exportify.net) como CSV y guardarlo en `playlists csv\`, luego:
 ```powershell
+# FLAC → MP3 (default)
 .\slsk-download.ps1 ".\playlists csv\MiPlaylist.csv"
+
+# WAV → MP3
+.\slsk-download.ps1 ".\playlists csv\MiPlaylist.csv" -Format wav
+
+# AIFF → MP3
+.\slsk-download.ps1 ".\playlists csv\MiPlaylist.csv" -Format aiff
 ```
-Descarga en `downloads\` con formato `Artist - Title.flac` (o `.mp3` si no hay FLAC).
+Descarga en `downloads\` con formato `Artist - Title.<ext>`. El `-Format` elige el lossless preferido;
+MP3 320 kbps es siempre el fallback. FLAC es el más común en Soulseek — WAV y AIFF son escasos.
 
 ### Verificar qué se descargó
 ```powershell
@@ -69,8 +77,9 @@ Descarga en `downloads\` con formato `Artist - Title.flac` (o `.mp3` si no hay F
 ```
 
 ### Re-intentar tracks fallidos
+Si la primera pasada con `-Format wav` o `-Format aiff` no encontró todo, reintentá con FLAC (default):
 ```powershell
-# check-downloads genera missing_<nombre>.csv automáticamente
+# Genera missing_<nombre>.csv y lo descarga con FLAC → MP3
 .\check-downloads.ps1 ".\playlists csv\MiPlaylist.csv" -ExportMissing -Run
 
 # O manualmente si ya tenés el CSV de faltantes
@@ -82,8 +91,8 @@ Pasar múltiples CSVs a `check-downloads.ps1` detecta canciones que aparecen en 
 de un playlist. Si ya están en `downloads\`, no se vuelven a descargar.
 
 ### Notas de sldl.conf
-- `format = flac,wav,mp3` — whitelist; sin este orden, sldl rechaza FLAC antes de aplicar `pref-format`
-- `pref-format = flac,wav` — prioriza lossless cuando está disponible
+- `pref-format` y `format` **no están en sldl.conf** — son inyectados por `slsk-download.ps1` vía
+  `--pref-format <Format>` y `--format <Format>,mp3` para que el param `-Format` funcione en runtime.
 - `min-bitrate = 320` — rechaza MP3 por debajo de 320 kbps
 - `fast-search = false` en el config file (no como flag CLI — sería interpretado como booleano true)
 

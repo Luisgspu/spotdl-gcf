@@ -1,17 +1,22 @@
 # slsk-download.ps1 — Download a Spotify playlist via Soulseek
-# Priority 1: FLAC (lossless)   Priority 2: MP3 320 kbps+
+# Priority 1: flac | wav | aiff (choose with -Format)   Priority 2: MP3 320 kbps+
 #
 # Usage:
-#   .\slsk-download.ps1 "https://open.spotify.com/playlist/..."   # Spotify URL (needs API creds)
-#   .\slsk-download.ps1 ".\playlist.csv"                          # Exportify CSV (no auth needed)
-#   .\slsk-download.ps1 "Artist - Track Title"                    # single track search
+#   .\slsk-download.ps1 "https://open.spotify.com/playlist/..."          # Spotify URL
+#   .\slsk-download.ps1 ".\playlist.csv"                                  # Exportify CSV
+#   .\slsk-download.ps1 "Artist - Track Title"                            # single track
+#   .\slsk-download.ps1 ".\playlist.csv" -Format wav                      # prefer WAV
+#   .\slsk-download.ps1 ".\playlist.csv" -Format aiff                     # prefer AIFF
 #
 # CSV mode — export from https://exportify.net then:
 #   .\slsk-download.ps1 ".\playlist.csv"
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Query
+    [string]$Query,
+
+    [ValidateSet('flac', 'wav', 'aiff')]
+    [string]$Format = 'flac'
 )
 
 # ── Load .env ──────────────────────────────────────────────────────────────────
@@ -45,7 +50,9 @@ function Invoke-SldlTrack([string]$TrackQuery) {
         "--config",          $config,
         "--user",            $env:SOULSEEK_USERNAME,
         "--pass",            $env:SOULSEEK_PASSWORD,
-        "--search-timeout", "15000"
+        "--search-timeout", "15000",
+        "--pref-format",    $Format,
+        "--format",         "$Format,mp3"
     )
     & $sldl @sldlArgs
 }
