@@ -76,7 +76,7 @@ if (Test-Path $Query -PathType Leaf) {
     # Exportify columns: "Track Name", "Artist Name(s)" (among others)
     $tracks = [System.Collections.Generic.List[string]]::new()
     foreach ($row in $csv) {
-        $artist = if ($row.'Artist Name(s)') { $row.'Artist Name(s)'.Split(',')[0].Trim() }
+        $artist = if ($row.'Artist Name(s)') { $row.'Artist Name(s)'.Split([char[]](';',','))[0].Trim() }
                   elseif ($row.'Artist Name') { $row.'Artist Name' }
                   else { $null }
         $title  = if ($row.'Track Name') { $row.'Track Name' } else { $null }
