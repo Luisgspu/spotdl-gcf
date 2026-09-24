@@ -1,18 +1,10 @@
 """
 deezer-download.py
-Lee Argentina_Mundial_26_Mix.csv, busca cada track en Deezer y lo descarga
-en MP3 320kbps usando deemix.
-
-Requisitos:
-    pip install deemix requests
+Lee un CSV de Exportify, busca cada track en Deezer y lo descarga en MP3 320kbps.
 
 Uso:
-    python deezer-download.py
-
-Configuración:
-    Editar ARL y OUTPUT_DIR abajo, o pasar por variable de entorno:
-        set DEEZER_ARL=tu_arl
-        python deezer-download.py
+    python deezer-download.py "playlists csv/MiPlaylist.csv"
+    python deezer-download.py                          # usa Argentina_Mundial_26_Mix.csv por defecto
 """
 
 import csv
@@ -24,11 +16,15 @@ import requests
 from pathlib import Path
 
 # ── Configuración ────────────────────────────────────────────────────────────
-ARL = os.environ.get("DEEZER_ARL", "")
+ARL = os.environ.get(
+    "DEEZER_ARL",
+    "aec6a9d36adf864ee610c8ba634073df04ab85347dc5ff6ac98e14df3371a6569fc2f28029147a41e823d14cf226e35e4016ac1e42a1691c64d761b8c7948c70234eeedc2e5db66ba0ea24fea747b8b21982002467472cd0d52e683b16059d4d"
+)
 
-CSV_PATH = Path(__file__).parent / "playlists csv" / "Argentina_Mundial_26_Mix.csv"
+_default_csv = Path(__file__).parent / "playlists csv" / "Argentina_Mundial_26_Mix.csv"
+CSV_PATH = Path(sys.argv[1]) if len(sys.argv) > 1 else _default_csv
 OUTPUT_DIR = Path(__file__).parent / "downloads"
-MISSING_LOG = Path(__file__).parent / "missing_deezer_Argentina_Mundial_26_Mix.txt"
+MISSING_LOG = Path(__file__).parent / f"missing_deezer_{CSV_PATH.stem}.txt"
 
 BITRATE = "320"   # 128 | 320 | FLAC
 SEARCH_URL = "https://api.deezer.com/search"
@@ -38,11 +34,11 @@ DELAY = 1.0       # segundos entre búsquedas (respetar rate limit)
 
 def search_deezer(artist: str, title: str) -> str | None:
     """Devuelve la URL del primer resultado en Deezer o None si no encontró."""
-    # Intentar búsqueda exacta primero, luego relajada
     queries = [
         f'artist:"{artist}" track:"{title}"',
         f"{artist} {title}",
     ]
+    last_error = None
     for q in queries:
         try:
             resp = requests.get(SEARCH_URL, params={"q": q, "limit": 5}, timeout=10)
@@ -50,15 +46,10 @@ def search_deezer(artist: str, title: str) -> str | None:
             if data.get("data"):
                 return data["data"][0]["link"]
         except Exception as e:
-            print(f"  [!] Error buscando '{artist} - {title}': {e}")
+            last_error = e
+    if last_error:
+        print(f"  [!] Error de red: {last_error}")
     return None
-
-
-def setup_arl(config_dir: Path) -> None:
-    """Escribe el ARL en el archivo de config de deemix."""
-    config_dir.mkdir(parents=True, exist_ok=True)
-    arl_file = config_dir / ".arl"
-    arl_file.write_text(ARL, encoding="utf-8")
 
 
 def download_track(url: str, output_dir: Path, config_dir: Path) -> bool:
@@ -69,13 +60,8 @@ def download_track(url: str, output_dir: Path, config_dir: Path) -> bool:
         "-p", str(output_dir),
         url,
     ]
-    # Apuntamos la variable de entorno al config dir para que deemix encuentre el .arl
-    env = {**os.environ, "DEEMIX_CONFIG_FOLDER": str(config_dir)}
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if result.returncode != 0:
-        print(f"  [!] deemix error: {result.stderr.strip()}")
-        return False
-    return True
+    result = subprocess.run(cmd)
+    return result.returncode == 0
 
 
 def main():
@@ -84,8 +70,6 @@ def main():
     # Config dir: en Windows deemix busca en %APPDATA%\deemix
     # Usamos una carpeta local al script para no tocar la config del sistema
     config_dir = Path(__file__).parent / ".deemix-config" / "deemix"
-    setup_arl(config_dir)
-
     missing = []
 
     with open(CSV_PATH, newline="", encoding="utf-8") as f:
@@ -93,32 +77,32 @@ def main():
         tracks = list(reader)
 
     total = len(tracks)
-    print(f"Playlist: {CSV_PATH.stem} — {total} tracks\n")
+    print(f"Playlist: {CSV_PATH.stem} — {total} tracks\n", flush=True)
 
     for i, row in enumerate(tracks, 1):
         title = row["Track Name"].strip()
         # Tomar solo el primer artista si hay varios separados por ";"
         artist = row["Artist Name(s)"].split(";")[0].strip()
 
-        print(f"[{i}/{total}] {artist} — {title}")
+        print(f"[{i}/{total}] {artist} — {title}", flush=True)
 
         url = search_deezer(artist, title)
         if not url:
-            print(f"  ✗ No encontrado en Deezer")
+            print(f"  NOT FOUND en Deezer", flush=True)
             missing.append(f"{artist} — {title}")
             time.sleep(DELAY)
             continue
 
-        print(f"  → {url}")
+        print(f"  -> {url}", flush=True)
         ok = download_track(url, OUTPUT_DIR, config_dir)
         if ok:
-            print(f"  ✓ Descargado")
+            print(f"  OK Descargado", flush=True)
         else:
             missing.append(f"{artist} — {title}")
 
         time.sleep(DELAY)
 
-    print(f"\n{'─'*50}")
+    print(f"\n{'-'*50}")
     print(f"Completado: {total - len(missing)}/{total} descargados")
 
     if missing:
