@@ -41,12 +41,13 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
-$sldl   = "$env:LOCALAPPDATA\Programs\sldl\sldl.exe"
+$sldl   = "$env:LOCALAPPDATA\Programs\sockseek\sockseek.exe"
 $config = Join-Path $PSScriptRoot "sldl.conf"
 
 function Invoke-SldlTrack([string]$TrackQuery) {
     $sldlArgs = @(
         $TrackQuery,
+        "--song",
         "--config",          $config,
         "--user",            $env:SOULSEEK_USERNAME,
         "--pass",            $env:SOULSEEK_PASSWORD,
